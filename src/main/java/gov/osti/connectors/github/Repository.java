@@ -114,6 +114,9 @@ public class Repository {
         @JsonProperty("subscribers_count")
         private Integer subscribersCount = 0;
         private Organization organization = null;
+        @JsonProperty("license")
+        private License license = null;
+        
         
         public Repository() {
             
@@ -910,5 +913,29 @@ public class Repository {
          */
         public void setFullName(String fullName) {
             this.fullName = fullName;
+        }
+        
+        /**
+         * Determine whether or not this Repository has a License associated with it.
+         * @return true if so, false if not
+         */
+        public boolean hasLicense() {
+            return (null!=license);
+        }
+        
+        /**
+         * Acquire the License information, if present.
+         * @return the License if found, or null if none found
+         */
+        public License getLicense() {
+            return license;
+        }
+        
+        /**
+         * Set the License information associated with this Repository.
+         * @param l the License information
+         */
+        public void setLicense(License l) {
+            license = l;
         }
 }

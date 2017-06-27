@@ -5,6 +5,7 @@ import gov.osti.connectors.github.Repository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gov.osti.connectors.github.Contributor;
+import gov.osti.connectors.github.License;
 import gov.osti.connectors.github.User;
 import gov.osti.entity.DOECodeMetadata;
 import gov.osti.entity.Developer;
@@ -13,6 +14,8 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpHeaders;
@@ -38,6 +41,10 @@ public class GitHub implements ConnectorInterface {
      * paste on owner/repository/branch/filename to obtain a single file reference.
      **/
     private static final String GITHUB_RAW_BASE_URL = "https://raw.githubusercontent.com/";
+    /**
+     * GitHub (experimental?) content type for requesting license information.
+     */
+    private static final String GITHUB_LICENSE_MIME_TYPE = "application/vnd.github.drax-preview+json";
     
     /**
      * Initialize and read the properties for configuration purposes.
@@ -80,6 +87,7 @@ public class GitHub implements ConnectorInterface {
             String authentication = API_USER + ":" + API_KEY;
             byte[] encoded = Base64.encodeBase64(authentication.getBytes(Charset.forName("ISO-8859-1")));
             get.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + new String(encoded));
+            get.addHeader(HttpHeaders.ACCEPT, GITHUB_LICENSE_MIME_TYPE);
         }
         return get;
     }
@@ -139,7 +147,6 @@ public class GitHub implements ConnectorInterface {
         try {
             // try to identify the NAME of the project
             String name = getProjectFromUrl(url);
-            log.info("Project name: " + name);
             if (null==name)
                 return null;
             
@@ -156,7 +163,7 @@ public class GitHub implements ConnectorInterface {
             // Convert the JSON into an Object we can handle
             Repository response = 
                     mapper.readValue(HttpUtil.fetch(get), Repository.class);
-
+            
             // parse the relevant response parts into Metadata
             md.setSoftwareTitle(response.getFullName());
             md.setAcronym(response.getName());
@@ -194,6 +201,15 @@ public class GitHub implements ConnectorInterface {
                         md.add(developer);
                     }
                 }
+            }
+            // get the LICENSE Information if present
+            if (response.hasLicense()) {
+                List<String> licenses = new ArrayList<>();
+                License license = response.getLicense();
+                // choose the "best" of INDEX NAME or NAME if former is not present
+                licenses.add((null==license.getIndexName()) ? license.getName() : license.getIndexName());
+                md.setLicenses(licenses);
+                
             }
             return md.toJson();
         } catch ( IOException e ) {
